@@ -489,9 +489,156 @@ const UPSTREAM_REPLAY_SCRIPTS = [
 	'/js/battle.js',
 ];
 
-// The upstream replay viewer (replay.pokemonshowdown.com/src/replays*.tsx, built to js/).
-// Upstream's index.php embeds the log inline in a text/plain script tag and the viewer
-// reads it from there, so a replay opens without waiting on a second request.
+const UPSTREAM_REPLAY_STYLE = `	@media (max-width:820px) {
+		.battle {
+			margin: 0 auto;
+		}
+		.battle-log {
+			margin: 7px auto 0;
+			max-width: 640px;
+			height: 300px;
+			position: static;
+		}
+	}
+	.optgroup {
+		display: inline-block;
+		line-height: 22px;
+		font-size: 10pt;
+		vertical-align: top;
+	}
+	.optgroup .button {
+		height: 25px;
+		padding-top: 0;
+		padding-bottom: 0;
+	}
+	.optgroup button.button {
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+	.linklist {
+		list-style: none;
+		margin: 0.5em 0;
+		padding: 0;
+	}
+	.linklist li {
+		padding: 2px 0;
+	}
+	.sidebar {
+		float: left;
+		width: 320px;
+	}
+	.bar-wrapper {
+		max-width: 1100px;
+		margin: 0 auto;
+	}
+	.bar-wrapper.has-sidebar {
+		max-width: 1430px;
+	}
+	.mainbar {
+		margin: 0;
+		padding-right: 1px;
+	}
+	.mainbar.has-sidebar {
+		margin-left: 330px;
+	}
+	.bar-wrapper.has-sidebar:not(.short-viewport) .mainbar {
+		position: sticky;
+		top: 0;
+	}
+	.bar-wrapper.has-sidebar.short-viewport {
+		max-width: none;
+	}
+	.bar-wrapper.has-sidebar.short-viewport .sidebar {
+		box-sizing: border-box;
+		position: sticky;
+		top: 0;
+		max-height: 100vh;
+		overflow-y: auto;
+	}
+	@media (min-width: 1431px) and (max-width: 1510px) {
+		.bar-wrapper.has-sidebar.short-viewport .sidebar {
+			width: calc(50% - 395px);
+			padding-left: calc(50% - 715px);
+		}
+		.bar-wrapper.has-sidebar.short-viewport .mainbar {
+			margin-right: calc(50% - 715px);
+			margin-left: calc(50% - 385px);
+		}
+	}
+	@media (min-width: 1511px) {
+		.sidebar {
+			width: 400px;
+		}
+		.bar-wrapper.has-sidebar {
+			max-width: 1510px;
+		}
+		.mainbar.has-sidebar {
+			margin-left: 410px;
+		}
+		.bar-wrapper.has-sidebar.short-viewport .sidebar {
+			width: calc(50% - 355px);
+			padding-left: calc(50% - 755px);
+		}
+		.bar-wrapper.has-sidebar.short-viewport .mainbar {
+			margin-right: calc(50% - 755px);
+			margin-left: calc(50% - 345px);
+		}
+	}
+	.section.first-section {
+		margin-top: 9px;
+	}
+	.blocklink small {
+		white-space: normal;
+	}
+	.button {
+		vertical-align: middle;
+	}
+	.replay-controls {
+		padding-top: 10px;
+	}
+	.replay-controls h1 {
+		font-size: 16pt;
+		font-weight: normal;
+		color: #CCC;
+	}
+	.pagelink {
+		text-align: center;
+	}
+	.pagelink a {
+		width: 150px;
+	}
+	.textbox, .button {
+		font-size: 11pt;
+		vertical-align: middle;
+	}
+	@media (max-width: 450px) {
+		.button {
+			font-size: 9pt;
+		}
+	}
+`;
+
+const PHNN_REPLAY_STYLE = `
+	.replay-controls button, .replay-controls select { font-family: Verdana, sans-serif; font-size: 10pt; }
+	.replay-controls h1 { color: #222; }
+	.dark .replay-controls h1 { color: #CCC; }
+	@media (max-width: 656px) {
+		html, body { margin: 0; padding: 0; }
+	}
+`;
+
+const PHNN_REPLAY_NAV_GUARD = '<script>\n' +
+	'document.addEventListener("click", function (e) {\n' +
+	'\tvar el = e.target;\n' +
+	'\twhile (el && el.tagName !== "A") el = el.parentNode;\n' +
+	'\tif (!el || !el.getAttribute("href")) return;\n' +
+	'\tvar url; try { url = new URL(el.href, location.href); } catch (err) { return; }\n' +
+	'\tvar base = location.pathname.slice(0, location.pathname.lastIndexOf("/") + 1);\n' +
+	'\tif (url.origin === location.origin && url.pathname === base) e.stopPropagation();\n' +
+	'}, true);\n' +
+	'<\/script>\n';
+
+
 function upstreamReplayHtml(id, log, meta) {
 	const title = meta && meta.players && meta.players.length ?
 		escapeHtml(meta.players.join(' vs. ')) + ' - Hackmons Cove Replay' : 'Hackmons Cove Replay';
@@ -499,9 +646,10 @@ function upstreamReplayHtml(id, log, meta) {
 	out += '<meta charset="utf-8" />\n';
 	out += '<meta name="viewport" content="width=device-width, initial-scale=1" />\n';
 	out += '<title>' + title + '</title>\n';
-	for (const href of ['/style/font-awesome.css', '/style/battle.css', '/style/utilichart.css', '/style/replay.css']) {
+	for (const href of ['/style/font-awesome.css', '/style/battle.css', '/style/utilichart.css']) {
 		out += '<link rel="stylesheet" href="' + CLIENT_ORIGIN + href + '" />\n';
 	}
+	out += '<style>\n' + UPSTREAM_REPLAY_STYLE + PHNN_REPLAY_STYLE + '</style>\n';
 	out += '</head><body>\n';
 	out += '<div id="main" class="main"></div>\n';
 	// The viewer only takes the inline path when replaydata-<id> exists; it reads the JSON from
@@ -522,6 +670,7 @@ function upstreamReplayHtml(id, log, meta) {
 	out += '<script defer src="/js/utils.js"><\/script>\n';
 	out += '<script defer src="/js/replays-battle.js"><\/script>\n';
 	out += '<script defer src="/js/replays.js"><\/script>\n';
+	out += PHNN_REPLAY_NAV_GUARD;
 	out += '</body></html>\n';
 	return out;
 }
